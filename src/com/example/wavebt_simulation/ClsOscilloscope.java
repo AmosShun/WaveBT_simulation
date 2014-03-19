@@ -586,6 +586,7 @@ public class ClsOscilloscope {
 	/**
 	 * 负责绘制inBuf中的数据
 	 */
+	private int zoom_rate = 1;
 	class DrawThread extends Thread {
 		private SurfaceView sfv;// 画板
 		private Paint mPaint;// 画笔
@@ -653,8 +654,8 @@ public class ClsOscilloscope {
 			//Log.i("EXG Wave", "create "+sfv.getWidth()+" X "+sfv.getHeight());
 			int y;
 			int oldX = 0, oldY = 0;
-			for (int i = 0; i < buffer.length; i++) {// 有多少画多少
-				int x = i;
+			for (int i = 0; i < buffer.length/zoom_rate; i++) {// 有多少画多少
+				int x = i*zoom_rate;
 				if ((buffer[i]/* + total_y/2*/) < start_y) {
 					buffer[i] = start_y;
 				} else if (buffer[i] > (start_y+total_y)) {
