@@ -587,6 +587,7 @@ public class ClsOscilloscope {
 	 * 负责绘制inBuf中的数据
 	 */
 	private int zoom_rate = 1;
+	protected boolean PAUSE = false; //屏幕冻结
 	class DrawThread extends Thread {
 		private SurfaceView sfv;// 画板
 		private Paint mPaint;// 画笔
@@ -597,6 +598,8 @@ public class ClsOscilloscope {
 		private BufferManagement buf_mgmt = null;
 		private int rc;
 		private int debug_i = 0;
+		
+		protected int[] paint_buffer_pause = null;
 		
 	    TimerTask task = new TimerTask(){
 	    	/* 
@@ -619,7 +622,14 @@ public class ClsOscilloscope {
 	        	if (rc == -1) {
 	        		//Log.i("EXG Wave", "get_show_buffer returned error");
 	        	}
-	        	//画在画布正中间
+	        	/*判断是否冻结*/
+	        	if(PAUSE == true && paint_buffer_pause == null){
+	        		paint_buffer_pause = new int[paint_buffer.length];
+	        		System.arraycopy(paint_buffer, 0, paint_buffer_pause, 0, paint_buffer.length);
+	        	}
+	        	else if(PAUSE == false)
+	        		paint_buffer_pause = null;
+	        		
 	        	
 	        	SimpleDraw(paint_buffer);
 	        }  	          
@@ -654,21 +664,41 @@ public class ClsOscilloscope {
 			//Log.i("EXG Wave", "create "+sfv.getWidth()+" X "+sfv.getHeight());
 			int y;
 			int oldX = 0, oldY = 0;
-			for (int i = 0; i < buffer.length/zoom_rate; i++) {// 有多少画多少
-				int x = i*zoom_rate;
-				if ((buffer[i]/* + total_y/2*/) < start_y) {
-					buffer[i] = start_y;
-				} else if (buffer[i] > (start_y+total_y)) {
-					buffer[i] = (start_y+total_y);
-				}
-				y = ((buffer[i] - start_y) * max_y) / total_y;
-				y = max_y - y /*- max_y/2*/;
-				if (oldX == 0) {
+			if(!PAUSE){
+				for (int i = 0; i < buffer.length/zoom_rate; i++) {// 有多少画多少
+					int x = i*zoom_rate;
+					if ((buffer[i]/* + total_y/2*/) < start_y) {
+						buffer[i] = start_y;
+					} else if (buffer[i] > (start_y+total_y)) {
+						buffer[i] = (start_y+total_y);
+					}
+					y = ((buffer[i] - start_y) * max_y) / total_y;
+					y = max_y - y /*- max_y/2*/;
+					if (oldX == 0) {
+						oldY = y;
+					}
+					canvas.drawLine(oldX, oldY, x, y, mPaint);
+					oldX = x;
 					oldY = y;
 				}
-				canvas.drawLine(oldX, oldY, x, y, mPaint);
-				oldX = x;
-				oldY = y;
+			}
+			else{
+				for (int i = 0; i < paint_buffer_pause.length/zoom_rate; i++) {// 有多少画多少
+					int x = i*zoom_rate;
+					if ((paint_buffer_pause[i]/* + total_y/2*/) < start_y) {
+						paint_buffer_pause[i] = start_y;
+					} else if (paint_buffer_pause[i] > (start_y+total_y)) {
+						paint_buffer_pause[i] = (start_y+total_y);
+					}
+					y = ((paint_buffer_pause[i] - start_y) * max_y) / total_y;
+					y = max_y - y /*- max_y/2*/;
+					if (oldX == 0) {
+						oldY = y;
+					}
+					canvas.drawLine(oldX, oldY, x, y, mPaint);
+					oldX = x;
+					oldY = y;
+				}
 			}
 			sfv.getHolder().unlockCanvasAndPost(canvas);// 解锁画布，提交画好的图像z
 		}

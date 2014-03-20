@@ -61,6 +61,7 @@ public class WaveActivity extends Activity {
 		editSR = (EditText) this.findViewById(R.id.editSR);
 		//recvMsg = (EditText) this.findViewById(R.id.recvMsg);
 		
+		
 		//参数显示
 		RR_interval = (TextView)this.findViewById(R.id.rR);
 		RR_interval.setText("RR间期：初始化中...");
@@ -71,7 +72,8 @@ public class WaveActivity extends Activity {
 		
 		// 画板和画笔
 		sfv = (SurfaceView) this.findViewById(R.id.SurfaceView01);
-		sfv.setOnTouchListener(new TouchEvent());
+		//sfv.setOnTouchListener(new TouchEvent());
+		sfv.setOnClickListener(new ClickEvent());
 		mPaint = new Paint();
 		mPaint.setColor(Color.GREEN);// 画笔为绿色
 		mPaint.setStrokeWidth(1);// 设置画笔粗细
@@ -145,6 +147,13 @@ public class WaveActivity extends Activity {
 				}
 			//} else if (v == btnMotion) {
 			//	clsOscilloscope.motion_toggle();
+			}else if (v == sfv){
+				/*点击SurfaceView,冻结屏幕*/
+				if(clsOscilloscope.PAUSE == false){
+					clsOscilloscope.PAUSE = true;
+				}
+				else
+					clsOscilloscope.PAUSE = false;
 			}
 		}
 	}
