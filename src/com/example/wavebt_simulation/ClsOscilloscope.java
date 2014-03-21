@@ -626,6 +626,8 @@ public class ClsOscilloscope {
 	        	if(PAUSE == true && paint_buffer_pause == null){
 	        		paint_buffer_pause = new int[paint_buffer.length];
 	        		System.arraycopy(paint_buffer, 0, paint_buffer_pause, 0, paint_buffer.length);
+	        		//保存指定波形段
+					save(paint_buffer_pause);
 	        	}
 	        	else if(PAUSE == false)
 	        		paint_buffer_pause = null;
@@ -701,6 +703,51 @@ public class ClsOscilloscope {
 				}
 			}
 			sfv.getHolder().unlockCanvasAndPost(canvas);// 解锁画布，提交画好的图像z
+		}
+	}
+	
+	/*
+	 * 将指定的波形段保存到SD卡
+	 */
+	private void save(int[] data){
+		/*建立文件夹*/
+		File save_folder = new File(Environment.getExternalStorageDirectory()+"/EXG_DATA/save");
+		if(!save_folder.exists())
+			save_folder.mkdir();
+		/*建立文件*/
+		File file = new File(Environment.getExternalStorageDirectory()+"/EXG_DATA/save/"+"test");
+		if(!file.exists())
+			try {
+				file.createNewFile();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		/*保存数据*/
+		FileOutputStream output = null;
+		try {
+			output = new FileOutputStream(file);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		byte[] buffer = new byte[data.length*2];
+		int j = 0;
+		for(int i=0; i<data.length; i++){
+			buffer[j++] = (byte)data[i];
+			buffer[j++] = (byte)(data[i]>>8);
+		}
+		try {
+			output.write(buffer);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		try {
+			output.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 }
