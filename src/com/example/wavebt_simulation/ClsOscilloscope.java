@@ -588,6 +588,7 @@ public class ClsOscilloscope {
 	 */
 	private int zoom_rate = 1;
 	protected boolean PAUSE = false; //屏幕冻结
+	protected int[] paint_buffer_pause = null;
 	class DrawThread extends Thread {
 		private SurfaceView sfv;// 画板
 		private Paint mPaint;// 画笔
@@ -599,7 +600,7 @@ public class ClsOscilloscope {
 		private int rc;
 		private int debug_i = 0;
 		
-		protected int[] paint_buffer_pause = null;
+
 		
 	    TimerTask task = new TimerTask(){
 	    	/* 
@@ -627,7 +628,7 @@ public class ClsOscilloscope {
 	        		paint_buffer_pause = new int[paint_buffer.length];
 	        		System.arraycopy(paint_buffer, 0, paint_buffer_pause, 0, paint_buffer.length);
 	        		//保存指定波形段
-					save(paint_buffer_pause);
+					//save(paint_buffer_pause);
 	        	}
 	        	else if(PAUSE == false)
 	        		paint_buffer_pause = null;
@@ -709,13 +710,13 @@ public class ClsOscilloscope {
 	/*
 	 * 将指定的波形段保存到SD卡
 	 */
-	private void save(int[] data){
+	public void save(int[] data, String file_name){
 		/*建立文件夹*/
 		File save_folder = new File(Environment.getExternalStorageDirectory()+"/EXG_DATA/save");
 		if(!save_folder.exists())
 			save_folder.mkdir();
 		/*建立文件*/
-		File file = new File(Environment.getExternalStorageDirectory()+"/EXG_DATA/save/"+"test");
+		File file = new File(Environment.getExternalStorageDirectory()+"/EXG_DATA/save/"+file_name);
 		if(!file.exists())
 			try {
 				file.createNewFile();

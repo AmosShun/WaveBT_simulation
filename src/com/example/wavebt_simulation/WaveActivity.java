@@ -1,12 +1,17 @@
 package com.example.wavebt_simulation;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
@@ -37,6 +42,9 @@ public class WaveActivity extends Activity {
 	ClsOscilloscope clsOscilloscope = new ClsOscilloscope();
 	
 	Paint mPaint;
+	
+
+	
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -105,6 +113,22 @@ public class WaveActivity extends Activity {
 		};
 	}
 	
+	/*菜单*/
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		// TODO Auto-generated method stub
+	    MenuInflater inflater = getMenuInflater();
+	    inflater.inflate(R.menu.main, menu);
+		return super.onCreateOptionsMenu(menu);
+	}
+	/*菜单按钮*/
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		// TODO Auto-generated method stub
+		SaveDialog();
+		return super.onOptionsItemSelected(item);
+	}
+
 	// Method 
 	static public void updateMessage (String msg) {
 		
@@ -169,6 +193,28 @@ public class WaveActivity extends Activity {
 			}
 			return true;
 		}
+	}
+	
+	/*
+	 * 保存波形的对话框
+	 */
+	public void SaveDialog(){
+		AlertDialog.Builder builder = new AlertDialog.Builder(WaveActivity.this);
+		//设置对话框布局文件
+		View view = View.inflate(this,R.layout.save_dialog,null);
+		builder.setView(view);
+		final EditText edit_text = (EditText)view.findViewById(R.id.filename);
+		//按键
+        builder.setPositiveButton("保存", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int id) {
+                String file_name = edit_text.getText().toString();
+                clsOscilloscope.save(clsOscilloscope.paint_buffer_pause,file_name);
+            }
+        });
 
+		
+
+		builder.create().show();
 	}
 }

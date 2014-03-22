@@ -2,7 +2,7 @@
 <resources>
 
     <string name="app_name">WaveBT_simulation</string>
-    <string name="action_settings">Settings</string>
+    <string name="save">保存当前波形</string>
     <string name="hello_world">Hello world!</string>
 
 </resources>
