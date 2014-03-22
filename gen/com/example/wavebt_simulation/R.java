@@ -38,6 +38,7 @@ public final class R {
         public static final int filename=0x7f080010;
         public static final int gender=0x7f080007;
         public static final int heartRate=0x7f080001;
+        public static final int load=0x7f080012;
         public static final int male=0x7f080009;
         public static final int qRs=0x7f080003;
         public static final int rR=0x7f080002;
@@ -52,7 +53,8 @@ public final class R {
     }
     public static final class string {
         public static final int app_name=0x7f050000;
-        public static final int hello_world=0x7f050002;
+        public static final int hello_world=0x7f050003;
+        public static final int load=0x7f050002;
         public static final int save=0x7f050001;
     }
     public static final class style {

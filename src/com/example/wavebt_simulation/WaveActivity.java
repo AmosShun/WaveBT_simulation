@@ -1,11 +1,17 @@
 package com.example.wavebt_simulation;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.AlertDialog.Builder;
 import android.content.DialogInterface;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -125,7 +131,14 @@ public class WaveActivity extends Activity {
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		// TODO Auto-generated method stub
-		SaveDialog();
+		switch(item.getItemId()){
+		case R.id.save:
+			SaveDialog();
+			break;
+		case R.id.load:
+			LoadDialog();
+			break;
+		}
 		return super.onOptionsItemSelected(item);
 	}
 
@@ -215,6 +228,32 @@ public class WaveActivity extends Activity {
 
 		
 
+		builder.create().show();
+	}
+	/*
+	 * 读取波形的对话框
+	 */
+	public void LoadDialog(){
+		/*获得文件列表*/
+		File root = new File(Environment.getExternalStorageDirectory()+"/EXG_DATA/save");
+		List<String> items = new ArrayList<String>();
+		for(File file : root.listFiles()){
+			items.add(file.getName());
+		}	//得到文件名列表
+		final String[] files = new String[items.size()];	//转成String数组
+		items.toArray(files);
+		/*设置对话框*/
+		AlertDialog.Builder builder = new AlertDialog.Builder(WaveActivity.this);
+		builder.setTitle("选择波形文件");
+		builder.setItems(files, new DialogInterface.OnClickListener(){
+
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				// TODO Auto-generated method stub
+				clsOscilloscope.load(files[which]);
+			}
+			
+		});
 		builder.create().show();
 	}
 }

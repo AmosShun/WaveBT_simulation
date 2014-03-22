@@ -751,4 +751,36 @@ public class ClsOscilloscope {
 			e.printStackTrace();
 		}
 	}
+	/*
+	 * 读取指定文件名的波形
+	 */
+	public void load(String file_name){
+		/*寻找文件*/
+		File file = new File(Environment.getExternalStorageDirectory()+"/EXG_DATA/save/"+file_name);
+		if(!file.exists())
+			try {
+				file.createNewFile();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		/*读取数据*/
+		FileInputStream input = null;
+		try{
+			input = new FileInputStream(file);
+		} catch(IOException e){
+			e.printStackTrace();
+		}
+		byte[] buffer = new byte[(int) file.length()];
+		try {
+			input.read(buffer);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		int[] data = new int[buffer.length/2];
+		for(int i=0; i<data.length; i++){
+			data[i] = (int) ((buffer[i*2] & 0xff) | ((buffer[i*2+1] & 0xff) << 8));
+		}
+		paint_buffer_pause = data;
+	}
 }
