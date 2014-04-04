@@ -336,7 +336,10 @@ public class ClsOscilloscope {
 		}
 		*/
 	}
-
+	
+	/*
+	 * ECG的BufferManagement
+	 */
 	class BufferManagement {
 		
 		/* paint_list to keep track of historical buffers */
@@ -507,6 +510,7 @@ public class ClsOscilloscope {
 				if (head_buf[0] != 0x02) {
 					Log.e("EXG Wave", "Error in exg.data: header type ne 0x02");
 				}
+
 				msg_length = (short) ((head_buf[1] & 0xff) | ((head_buf[2] & 0xff) << 8));
 				data_buf = new byte[msg_length];
 				read_head_stage = 1;
@@ -583,6 +587,252 @@ public class ClsOscilloscope {
 		}
 	}
 	
+	/*
+	 * MOTION的BufferManagement
+	 */
+	class BufferManagement_Acc {
+		
+		/* paint_list to keep track of historical buffers */
+		private ArrayList<int[]> paint_list = new ArrayList<int[]>();
+		
+		/* number of points per buffer */
+		private int per_buf_points = 0;
+		
+		/* 
+		 * input buffer and its related state machine,
+		 * to keep track of data fragments
+		 */
+		private byte[] head_buf = new byte[2];
+		private int head_idx = 0;
+		private byte[] data_buf;
+		private int data_idx = 0;
+		private int[] data_pool_x;
+		private int[] data_pool_y;
+		private int[] data_pool_z;
+		
+		private int screen_width = 0;
+		/*
+		 * FIXME: assume sample_per_sec is larger than screen_width!!!
+		 */
+		private int sample_per_sec = 0;		/* number of samples/sec */
+		private int prev_sample_per_sec = 0;
+		private int down_sample_rate = 0;	/* number of samples/shown sample */
+		private int sub_sample_counter = 0;
+		private int remain_points = 0;
+		private int read_head_stage = 0;
+		private short msg_length = 0;		
+		/* the single temporary buffer */
+		int[] tmp_buf = null;
+		int tmp_i = 0;
+		int tmp_buf_debt = 0;
+		
+		public BufferManagement_Acc(int width) {
+			// We choose the latest header among all headers in EXG_DATA folder
+			// First wait until EXG_DATA folder show up
+			motionLogger.ReaderInit();
+			screen_width = width;
+		}
+		
+		public void fill_buffer(int buffer[]) {
+			int i = 0;
+			int paint_i = 0;
+			int paint_buf_i = 0;
+			int[] paint_buf = null;
+			
+			for (i = 0; i < buffer.length; i++) {
+				buffer[i] = 0;
+			}
+			if (paint_list.isEmpty()) {
+				//Log.i("EXG Wave", "fill buffer exit because NULL");
+				return;
+			}
+			i = 0;
+			paint_buf = paint_list.get(0);
+			while (i < buffer.length) {
+				if (paint_buf_i < per_buf_points) {
+					buffer[i] = paint_buf[paint_buf_i];
+					i++;
+					paint_buf_i++;
+				} else {
+					paint_buf_i = 0;
+					paint_i++;
+					if (paint_list.size() > paint_i) {
+						paint_buf = paint_list.get(paint_i);
+					} else {
+						return;
+					}
+				}
+			}
+		}
+		
+		public int get_show_buffer(int buffer[]) {	
+			int remove_threshold = 0;
+			
+			//Log.i("EXG Wave", "get_show_buffer");
+			if (per_buf_points == 0) {
+				remove_threshold = 20;	//一个画板最多画20个数据包
+			} else {
+				remove_threshold = (screen_width/per_buf_points);	//一个画板画多少个数据包
+			}
+			if (paint_list.size() > remove_threshold) {
+				//Log.i("EXG Wave", "remove head buffer");
+				paint_list.remove(0);	//paint_list超出屏幕宽度，左移
+			}
+			if (remain_points == 0) {
+				if (pull_more_data() != 0) {
+					fill_buffer(buffer);
+					return -1;
+				}
+			}
+			tmp_buf_debt++;
+			while (tmp_buf_debt > 0) {
+				while (tmp_i < per_buf_points) {
+					/* get one sample point from data_pool */
+					while (sub_sample_counter != (down_sample_rate-1)) {
+						if (remain_points > 0) {
+							/* skip over data_idx */
+							//Log.i("EXG Wave", "skip one");
+							data_idx++;
+							remain_points--;
+							sub_sample_counter++;
+							total_read_count++;
+						} else {
+							if (pull_more_data() != 0) {
+								fill_buffer(buffer);
+								return -1;
+							}
+						}
+					}
+					if (remain_points > 0) {
+						//Log.i("EXG Wave", "sample: "+data_pool[data_idx]);
+						tmp_buf[tmp_i] = data_pool_x[data_idx];
+						tmp_i++;
+						sub_sample_counter = 0;
+						data_idx++;
+						remain_points--;
+						total_read_count++;
+					} else {
+						if (pull_more_data() != 0) {
+							fill_buffer(buffer);
+							return -1;
+						}
+					}
+				}
+				paint_list.add(paint_list.size(), tmp_buf);
+				tmp_buf_debt--;
+				tmp_i = 0;
+				tmp_buf = new int[per_buf_points];
+			}
+			fill_buffer(buffer);
+			return 0;
+		}
+
+		private int pull_more_data() {
+			int rc = 0;
+			
+			//Log.i("EXG Wave", "pull_more_data");
+			if (remain_points != 0) {
+				Log.e("EXG Wave", "should not be called when still has data");
+				return -1;
+			}
+			if (read_head_stage == 0) {
+				//Log.i("EXG Wave", "read_head_stage == 0");
+				head_idx = 0;
+				data_idx = 0;
+				try {
+					if (motionLogger.ReaderAvailable() < 2) {
+						//Log.i("EXG Wave", "header not available");
+						//At this point, need to search for alternative file
+						motionLogger.ReaderSwitchFile();
+						return -1;
+					}
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				while (head_idx < 2) {
+					try {
+						rc = motionLogger.ReaderRead(head_buf, head_idx, (2-head_idx));
+						head_idx += rc;
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				
+				msg_length = (short) ((head_buf[0] & 0xff) | ((head_buf[1] & 0xff) << 8));
+				data_buf = new byte[msg_length];
+				read_head_stage = 1;
+			}
+			
+			/* wait until there is at least msg_length data to read */
+			try {
+				if (motionLogger.ReaderAvailable() < msg_length) {
+					//Log.i("EXG Wave", "msg_length not available");
+					return -1;
+				}
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			while (data_idx < msg_length) {
+				try {
+					rc = motionLogger.ReaderRead(data_buf, data_idx, (msg_length-data_idx));
+					data_idx += rc;
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			/* Now we have data, add them to paint_list */
+			//short channel_num;
+			//short seq_num;
+			//seq_num = (short) ((data_buf[0] & 0xff) | ((data_buf[1] & 0xff) << 8));
+			//channel_num = (short) ((data_buf[2] & 0xff) | ((data_buf[3] & 0xff) << 8));
+			sample_per_sec = (short) ((data_buf[2] & 0xff) | ((data_buf[3] & 0xff) << 8));
+			remain_points = (msg_length-4)/3;
+			read_head_stage = 0;
+			data_pool_x = new int[remain_points];
+			data_pool_y = new int[remain_points];
+			data_pool_z = new int[remain_points];
+			for (int i = 0; i < remain_points; i++) {
+				data_pool_x[i] = (int)(data_buf[4+i*3]);
+				data_pool_y[i] = (int)(data_buf[4+i*3+1]);
+				data_pool_z[i] = (int)(data_buf[4+i*3+2]);
+			}
+			if (prev_sample_per_sec != sample_per_sec) {
+				/* 
+				 * sample/sec changed, this could be the init case, 
+				 * or user changed sample rate
+				 */
+				prev_sample_per_sec = sample_per_sec;
+				paint_list.clear();
+				sub_sample_counter = 0;
+				tmp_i = 0;
+				tmp_buf_debt = 0;
+				if (sample_per_sec >= screen_width) {
+					/* down sampling */
+					down_sample_rate = sample_per_sec/screen_width;
+					per_buf_points = (sample_per_sec/down_sample_rate)/frames_per_sec;
+					
+				} else {
+					/* full sample */
+					down_sample_rate = 1;
+					per_buf_points = sample_per_sec/frames_per_sec;
+					if (per_buf_points < 1) {
+						per_buf_points = 1;
+					}
+				}
+				tmp_buf = new int[per_buf_points];
+				data_idx = 0;
+				return -1;
+			} 
+			data_idx = 0;	
+			return 0;
+		}
+	}
+	
 	/**
 	 * 负责绘制inBuf中的数据
 	 */
@@ -596,7 +846,7 @@ public class ClsOscilloscope {
 		private int max_x = 0;
 		Timer timer = new Timer();
 		private int [] paint_buffer = null;
-		private BufferManagement buf_mgmt = null;
+		private BufferManagement_Acc buf_mgmt = null;
 		private int rc;
 		private int debug_i = 0;
 		
@@ -617,7 +867,7 @@ public class ClsOscilloscope {
 	        		max_y = sfv.getHeight();
 	        		max_x = sfv.getWidth();
 	        		paint_buffer = new int[max_x];
-	        		buf_mgmt = new BufferManagement(max_x);
+	        		buf_mgmt = new BufferManagement_Acc(max_x);
 	        	}
 	        	rc = buf_mgmt.get_show_buffer(paint_buffer);
 	        	if (rc == -1) {
