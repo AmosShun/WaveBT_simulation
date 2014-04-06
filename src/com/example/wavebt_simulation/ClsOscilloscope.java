@@ -297,11 +297,11 @@ public class ClsOscilloscope {
 	 * @param recBufSize
 	 *            AudioRecord的MinBufferSize
 	 */
-	public void Start(SurfaceView sfv, Paint mPaint) {
+	public void Start(SurfaceView sfv, SurfaceView sfv_acc, Paint mPaint) {
 		//usb_recv_thread = new RecordThread();
 		//usb_recv_thread.start();// 开始录制线程
 		//new BufferListThread().start();
-		new DrawThread(sfv, mPaint).start();// 开始绘制线程
+		new DrawThread(sfv, sfv_acc, mPaint).start();// 开始绘制线程
 		//Register with server
 		List<NameValuePair> login_parm = new ArrayList<NameValuePair>();
 		login_parm.add(new BasicNameValuePair("user", "user"));
@@ -845,15 +845,20 @@ public class ClsOscilloscope {
 	protected boolean PAUSE = false; //屏幕冻结
 	protected int[] paint_buffer_pause = null;
 	class DrawThread extends Thread {
-		private SurfaceView sfv;// 画板
+		private SurfaceView sfv;// ECG画板
 		private Paint mPaint;// 画笔
 		private int max_y = 0;
 		private int max_x = 0;
 		Timer timer = new Timer();
 		private int [] paint_buffer = null;
-		private BufferManagement_Acc buf_mgmt = null;
+		private BufferManagement buf_mgmt = null;
 		private int rc;
 		private int debug_i = 0;
+		private SurfaceView sfv_acc;//Acc画板
+		private int max_y_acc = 0;
+		private int max_x_acc = 0;
+		private BufferManagement_Acc buf_mgmt_acc = null;
+		private int[] paint_buffer_acc = null;
 		
 
 		
@@ -867,17 +872,25 @@ public class ClsOscilloscope {
 	        		debug_i = 0;
 	        		//Log.i("EXG Wave", "total_write_count: "+total_write_count+" total_read_count: "+total_read_count);
 	        	}
-	        	/* Initialize everything */
+	        	/* 初始化ECG画布 */
 	        	if (max_y == 0) {
 	        		max_y = sfv.getHeight();
 	        		max_x = sfv.getWidth();
 	        		paint_buffer = new int[max_x];
-	        		buf_mgmt = new BufferManagement_Acc(max_x);
+	        		buf_mgmt = new BufferManagement(max_x);
 	        	}
 	        	rc = buf_mgmt.get_show_buffer(paint_buffer);
 	        	if (rc == -1) {
 	        		//Log.i("EXG Wave", "get_show_buffer returned error");
 	        	}
+	        	/*初始化ACC画布*/
+	        	if(max_y_acc == 0){
+	        		max_y_acc = sfv_acc.getHeight();
+	        		max_x_acc = sfv_acc.getWidth();
+	        		paint_buffer_acc = new int[max_x_acc];
+	        		buf_mgmt_acc = new BufferManagement_Acc(max_x_acc);
+	        	}
+	        	rc = buf_mgmt_acc.get_show_buffer(paint_buffer_acc);
 	        	/*判断是否冻结*/
 	        	if(PAUSE == true && paint_buffer_pause == null){
 	        		paint_buffer_pause = new int[paint_buffer.length];
@@ -888,12 +901,14 @@ public class ClsOscilloscope {
 	        	else if(PAUSE == false)
 	        		paint_buffer_pause = null;
 	        	//绘制波形
-	        	SimpleDraw_Acc(paint_buffer);
+	        	SimpleDraw(paint_buffer);
+	        	SimpleDraw_Acc(paint_buffer_acc);
 	        }  	          
 	    }; 
 
-		public DrawThread(SurfaceView sfv, Paint mPaint) {
+		public DrawThread(SurfaceView sfv, SurfaceView sfv_acc, Paint mPaint) {
 			this.sfv = sfv;
+			this.sfv_acc = sfv_acc;
 			this.mPaint = mPaint;
 			timer.schedule(task, 1000, 1000/frames_per_sec); 
 		}
@@ -965,15 +980,15 @@ public class ClsOscilloscope {
 		 * @param buffer 绘制的信号，即加速度向量模
 		 */
 		void SimpleDraw_Acc(int[] buffer){
-			Canvas canvas = sfv.getHolder().lockCanvas(
-					new Rect(0, 0, sfv.getWidth(), sfv.getHeight()));// 关键:获取画布
+			Canvas canvas = sfv_acc.getHolder().lockCanvas(
+					new Rect(0, 0, sfv_acc.getWidth(), sfv_acc.getHeight()));// 关键:获取画布
 			canvas.drawColor(Color.BLACK);// 清除背景
 			int x;
 			int y;
 			int oldX = 0, oldY = 0;	
 			for(int i=0; i<buffer.length; i++){
 				x = i;
-				y = max_y - (buffer[i] * max_y)/256;
+				y = max_y_acc - (buffer[i] * max_y_acc)/256;
 				if (oldX == 0) {
 					oldY = y;
 				}
@@ -981,7 +996,7 @@ public class ClsOscilloscope {
 				oldX = x;
 				oldY = y;				
 			}
-			sfv.getHolder().unlockCanvasAndPost(canvas);// 解锁画布，提交画好的图像z
+			sfv_acc.getHolder().unlockCanvasAndPost(canvas);// 解锁画布，提交画好的图像z
 		}
 	}
 	
