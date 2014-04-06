@@ -606,9 +606,10 @@ public class ClsOscilloscope {
 		private int head_idx = 0;
 		private byte[] data_buf;
 		private int data_idx = 0;
-		private int[] data_pool_x;
-		private int[] data_pool_y;
-		private int[] data_pool_z;
+		private int[] data_pool;	//加速度向量模
+		private int[] data_pool_x;	//x轴加速度
+		private int[] data_pool_y;	//y轴加速度
+		private int[] data_pool_z;	//z轴加速度
 		
 		private int screen_width = 0;
 		/*
@@ -705,7 +706,7 @@ public class ClsOscilloscope {
 					}
 					if (remain_points > 0) {
 						//Log.i("EXG Wave", "sample: "+data_pool[data_idx]);
-						tmp_buf[tmp_i] = data_pool_x[data_idx];
+						tmp_buf[tmp_i] = data_pool[data_idx];
 						tmp_i++;
 						sub_sample_counter = 0;
 						data_idx++;
@@ -793,13 +794,17 @@ public class ClsOscilloscope {
 			sample_per_sec = (short) ((data_buf[2] & 0xff) | ((data_buf[3] & 0xff) << 8));
 			remain_points = (msg_length-4)/3;
 			read_head_stage = 0;
+			data_pool = new int[remain_points];
 			data_pool_x = new int[remain_points];
 			data_pool_y = new int[remain_points];
 			data_pool_z = new int[remain_points];
+			/*读取加速度数据x,y,z，计算向量模*/
 			for (int i = 0; i < remain_points; i++) {
 				data_pool_x[i] = (int)(data_buf[4+i*3]);
 				data_pool_y[i] = (int)(data_buf[4+i*3+1]);
 				data_pool_z[i] = (int)(data_buf[4+i*3+2]);
+				int temp = data_pool_x[i]*data_pool_x[i] + data_pool_y[i]*data_pool_y[i] + data_pool_z[i]+ data_pool_z[i];
+				data_pool[i] = (int) Math.sqrt(temp);
 			}
 			if (prev_sample_per_sec != sample_per_sec) {
 				/* 
@@ -882,9 +887,8 @@ public class ClsOscilloscope {
 	        	}
 	        	else if(PAUSE == false)
 	        		paint_buffer_pause = null;
-	        		
-	        	
-	        	SimpleDraw(paint_buffer);
+	        	//绘制波形
+	        	SimpleDraw_Acc(paint_buffer);
 	        }  	          
 	    }; 
 
@@ -952,6 +956,30 @@ public class ClsOscilloscope {
 					oldX = x;
 					oldY = y;
 				}
+			}
+			sfv.getHolder().unlockCanvasAndPost(canvas);// 解锁画布，提交画好的图像z
+		}
+		
+		/**
+		 * 绘制加速度
+		 * @param buffer 绘制的信号，即加速度向量模
+		 */
+		void SimpleDraw_Acc(int[] buffer){
+			Canvas canvas = sfv.getHolder().lockCanvas(
+					new Rect(0, 0, sfv.getWidth(), sfv.getHeight()));// 关键:获取画布
+			canvas.drawColor(Color.BLACK);// 清除背景
+			int x;
+			int y;
+			int oldX = 0, oldY = 0;	
+			for(int i=0; i<buffer.length; i++){
+				x = i;
+				y = max_y - (buffer[i] * max_y)/256;
+				if (oldX == 0) {
+					oldY = y;
+				}
+				canvas.drawLine(oldX, oldY, x, y, mPaint);
+				oldX = x;
+				oldY = y;				
 			}
 			sfv.getHolder().unlockCanvasAndPost(canvas);// 解锁画布，提交画好的图像z
 		}
