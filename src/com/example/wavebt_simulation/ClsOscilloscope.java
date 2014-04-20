@@ -170,6 +170,7 @@ public class ClsOscilloscope {
 
     private Derivative derivative = new Derivative();
     private Filter filter = new Filter();
+    private TcpClientThread clientThread = new TcpClientThread();
     /*
     int send_over_socket = 0;
     Socket client = null;
@@ -548,12 +549,12 @@ public class ClsOscilloscope {
 			for (int i = 0; i < remain_points; i++) {
 				data_pool[i] = (int) ((data_buf[6+i*2] & 0xff) | ((data_buf[6+i*2+1] & 0xff) << 8));
 			}
-			
 			//差分法寻找QRS波群
 			derivative.process(data_pool);
 			//高通滤波消除基线漂移
 			data_pool = filter.highpass(data_pool);
-			
+			//TCP发送数据到服务器
+			clientThread.send(data_pool);
 			
 			if (prev_sample_per_sec != sample_per_sec) {
 				/* 

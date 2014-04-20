@@ -4,18 +4,24 @@
     android:layout_height="fill_parent"
     android:orientation="vertical"
     android:padding="10dip" >
-
+	<TextView
+	    android:layout_width="fill_parent"
+	    android:layout_height="wrap_content"
+	    android:text="心电图："/>
     <SurfaceView
         android:id="@+id/SurfaceView01"
         android:layout_width="fill_parent"
-        android:layout_height="112dp"
-        android:layout_weight="0.69" />
-
+        android:layout_height="wrap_content"
+        android:layout_weight="1" />
+	<TextView 
+	    android:layout_width="fill_parent"
+	    android:layout_height="wrap_content"
+	    android:text="加速度："/>
     <SurfaceView
         android:id="@+id/SurfaceView02"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1.44" />
+        android:layout_weight="1" />
 
     <TextView
         android:id="@+id/heartRate"
