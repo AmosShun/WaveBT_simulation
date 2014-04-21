@@ -148,7 +148,6 @@ public class WaveActivity extends Activity {
 	static public void updateMessage (String msg) {
 		
 	}
-	
 	@Override
 	protected void onDestroy() {
 		clsOscilloscope.Stop();

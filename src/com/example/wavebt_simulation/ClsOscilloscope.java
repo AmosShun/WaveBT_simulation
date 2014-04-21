@@ -170,6 +170,7 @@ public class ClsOscilloscope {
 
     private Derivative derivative = new Derivative();
     private Filter filter = new Filter();
+    private DrawThread drawThread = null;
     private TcpClientThread clientThread = new TcpClientThread();
     /*
     int send_over_socket = 0;
@@ -302,7 +303,8 @@ public class ClsOscilloscope {
 		//usb_recv_thread = new RecordThread();
 		//usb_recv_thread.start();// 开始录制线程
 		//new BufferListThread().start();
-		new DrawThread(sfv, sfv_acc, mPaint).start();// 开始绘制线程
+		drawThread = new DrawThread(sfv, sfv_acc, mPaint);// 开始绘制线程
+		drawThread.start();
 		//Register with server
 		List<NameValuePair> login_parm = new ArrayList<NameValuePair>();
 		login_parm.add(new BasicNameValuePair("user", "user"));
@@ -324,8 +326,12 @@ public class ClsOscilloscope {
 	 * 停止
 	 */
 	public void Stop() {
+		//关闭FileLogger
 		exgLogger.Stop();
 		motionLogger.Stop();
+		//关闭DrawThread中使用的定时器
+		drawThread.timer.cancel();
+		drawThread.task.cancel();
 
 		/*
 		try {
@@ -902,8 +908,14 @@ public class ClsOscilloscope {
 	        	else if(PAUSE == false)
 	        		paint_buffer_pause = null;
 	        	//绘制波形
-	        	SimpleDraw(paint_buffer);
-	        	SimpleDraw_Acc(paint_buffer_acc);
+	        	//！！这里必须接收异常，否则当退出程序时，onDestroy()还没有执行，timer仍在工作，
+	        	//而SimpleDraw()中要使用SurfaceView，就会抛出空指针异常。不catch会死机。
+	        	try{
+		        	SimpleDraw(paint_buffer);
+		        	SimpleDraw_Acc(paint_buffer_acc);
+	        	}catch(Exception e){
+	        		e.printStackTrace();
+	        	}
 	        }  	          
 	    }; 
 
