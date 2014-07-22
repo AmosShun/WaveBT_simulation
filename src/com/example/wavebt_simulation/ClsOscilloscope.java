@@ -51,7 +51,7 @@ public class ClsOscilloscope {
 		private int current_unix_time = 0;
 		private List<Integer> next_ut_list = new ArrayList<Integer>();
 		private int buffer_current_unix_time = 0;
-		private static final int START_UNIX_TIME = 1395107776;
+		private static final int START_UNIX_TIME = 1400164035;
 		 
 		/*
 		 * Initialize folder
@@ -170,7 +170,7 @@ public class ClsOscilloscope {
 
     private Derivative derivative = new Derivative();
     private Filter filter = new Filter();
-    private DrawThread drawThread = null;
+    public DrawThread drawThread = null;
     private TcpClientThread clientThread = new TcpClientThread();
     /*
     int send_over_socket = 0;
@@ -542,7 +542,7 @@ public class ClsOscilloscope {
 					e.printStackTrace();
 				}
 			}
-			
+
 			/* Now we have data, add them to paint_list */
 			//short channel_num;
 			//short seq_num;
@@ -560,7 +560,7 @@ public class ClsOscilloscope {
 			//高通滤波消除基线漂移
 			data_pool = filter.highpass(data_pool);
 			//TCP发送数据到服务器
-			clientThread.send(data_pool);
+			clientThread.sendECG(data_pool);
 			
 			if (prev_sample_per_sec != sample_per_sec) {
 				/* 
@@ -792,7 +792,7 @@ public class ClsOscilloscope {
 					e.printStackTrace();
 				}
 			}
-			
+			clientThread.sendMOTION(data_buf);	//发送加速度数据到服务器端
 			/* Now we have data, add them to paint_list */
 			//short channel_num;
 			//short seq_num;
@@ -857,7 +857,7 @@ public class ClsOscilloscope {
 		private int max_y = 0;
 		private int max_x = 0;
 		Timer timer = new Timer();
-		private int [] paint_buffer = null;
+		public int [] paint_buffer = null;
 		private BufferManagement buf_mgmt = null;
 		private int rc;
 		private int debug_i = 0;
@@ -1088,5 +1088,61 @@ public class ClsOscilloscope {
 			data[i] = (int) ((buffer[i*2] & 0xff) | ((buffer[i*2+1] & 0xff) << 8));
 		}
 		paint_buffer_pause = data;
+	}
+	
+	/*
+	 * 保存心律失常波形
+	 */
+	public void save_arrhythmia(){
+		final int[] data = new int[drawThread.paint_buffer.length];
+		System.arraycopy(drawThread.paint_buffer, 0, data, 0, drawThread.paint_buffer.length);
+		Runnable runnable = new Runnable(){
+
+			@Override
+			public void run() {
+				/*建立文件夹*/
+				File save_folder = new File(Environment.getExternalStorageDirectory()+"/EXG_DATA/Arrhythmia");
+				if(!save_folder.exists())
+					save_folder.mkdir();
+				/*建立文件*/
+				int file_name = (int) (System.currentTimeMillis() / 1000L);
+				File file = new File(Environment.getExternalStorageDirectory()+"/EXG_DATA/save/"+file_name);
+				if(!file.exists())
+					try {
+						file.createNewFile();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				/*保存数据*/
+				FileOutputStream output = null;
+				try {
+					output = new FileOutputStream(file);
+				} catch (FileNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				byte[] buffer = new byte[data.length*2];
+				int j = 0;
+				for(int i=0; i<data.length; i++){
+					buffer[j++] = (byte)data[i];
+					buffer[j++] = (byte)(data[i]>>8);
+				}
+				try {
+					output.write(buffer);
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				try {
+					output.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+		};
+		new Thread(runnable).start();
 	}
 }

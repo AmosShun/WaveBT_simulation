@@ -25,7 +25,7 @@
 
     <TextView
         android:id="@+id/heartRate"
-        android:layout_width="fill_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:text="心率：初始化..."
@@ -34,22 +34,29 @@
 
     <TextView
         android:id="@+id/rR"
-        android:layout_width="fill_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:text="RR间期：初始化..."
         android:textSize="8pt"
         android:textStyle="italic" />
-
+  
     <TextView
         android:id="@+id/qRs"
-        android:layout_width="fill_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="QRS间期：初始化..."
         android:textSize="8pt"
         android:textStyle="italic" />
-
-
+    
+    <TextView
+        android:id="@+id/arrhythmia"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:text="异常心率：初始化..."
+        android:textSize="8pt"
+        android:textStyle="italic" />
 
     <LinearLayout
         android:id="@+id/LinearLayout02"

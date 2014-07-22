@@ -12,7 +12,8 @@ public class TcpClientThread extends Thread{
 	public final int port = 4000;
 	public Socket socket = null;
 	public OutputStream output = null;
-	public int[] data = null;
+	public int[] dataECG = null;
+	public byte[] dataMOTION = null;
 	/*
 	 * 构造函数，连接服务器
 	 */
@@ -43,34 +44,89 @@ public class TcpClientThread extends Thread{
 	 * 线程run方法
 	 */
 	public void run(){
+		int seqNum = 0;
+		int SampleRate = 100;
 		while(true){
-			if(data != null){
-				for(int i=0; i<data.length; i++){
-					if(data[i] == 0){
-						Log.d("datazero","zero");
-					}
-					byte l = (byte)data[i];
-					byte h = (byte)(data[i]>>8);
-					try {
-						output.write(l);
-					} catch (IOException e1) {
-						// TODO Auto-generated catch block
-						e1.printStackTrace();
-					}
-					try {
-						output.write(h);
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+			synchronized(this){
+				try {
+					wait();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
-				data = null;
+			}
+			if(dataECG != null){
+				try{
+				byte[] title = {'E','X','G','B','T'};
+				output.write(title);
+				output.write(0x02);
+				
+				int length = dataECG.length*2 + 6;
+				byte l = (byte)length;
+				byte h = (byte)(length>>8);
+				output.write(l);
+				output.write(h);
+				l = (byte)seqNum;
+				h = (byte)(seqNum>>8);
+				output.write(l);
+				output.write(h);
+				seqNum++;
+				output.write(0x00);
+				output.write(0x00);
+				l = (byte)SampleRate;
+				h = (byte)(SampleRate>>8);
+				output.write(l);
+				output.write(h);
+				for(int i=0; i<dataECG.length; i++){
+					l = (byte)dataECG[i];
+					h = (byte)(dataECG[i]>>8);
+						output.write(l);
+						output.write(h);
+				}
+				/*
+				int length = dataECG.length;
+				byte l = (byte)length;
+				byte h = (byte)(length<<8);
+				output.write(l);
+				output.write(h);
+				output.write(dataECG);
+				*/
+				}catch(IOException e){
+					e.printStackTrace();
+				}
+				dataECG = null;
+			}
+			if(dataMOTION != null){
+				try{
+					byte[] title = {'M','O','T','I','O','N'};
+					output.write(title);	//发送标签
+					int length = dataMOTION.length;
+					byte l = (byte)length;
+					byte h = (byte)(length>>8);
+					output.write(l);
+					output.write(h);	//发送length
+					output.write(dataMOTION);	//发送MOTION数据包
+				}catch(IOException e){
+					e.printStackTrace();
+				}
+				dataMOTION = null;
 			}
 		}
 	}
 	
-	public void send(int[] s){
-		data = new int[s.length];
-		System.arraycopy(s, 0, data, 0, s.length);
+	public void sendECG(int[] s){
+		dataECG = new int[s.length];
+		System.arraycopy(s, 0, dataECG, 0, s.length);
+		synchronized(this){
+			notifyAll();
+		}
+	}
+	
+	public void sendMOTION(byte[] s){
+		dataMOTION = new byte[s.length];
+		System.arraycopy(s, 0, dataMOTION, 0, s.length);
+		synchronized(this){
+			notifyAll();
+		}
 	}
 }

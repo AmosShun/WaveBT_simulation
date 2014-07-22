@@ -43,10 +43,11 @@ public class WaveActivity extends Activity {
 	private TextView RR_interval;
 	private TextView heart_rate;
 	private TextView QRS_interval;
+	private TextView arrhythmia;
 	private int prev_alive = 0;
 	public static Handler handler;
 
-	ClsOscilloscope clsOscilloscope = new ClsOscilloscope();
+	public ClsOscilloscope clsOscilloscope = new ClsOscilloscope();
 	
 	Paint mPaint;
 	
@@ -84,6 +85,8 @@ public class WaveActivity extends Activity {
 		heart_rate.setText("心率：初始化中...");
 		QRS_interval = (TextView)this.findViewById(R.id.qRs);
 		QRS_interval.setText("QRS间期：初始化中...");
+		arrhythmia = (TextView)this.findViewById(R.id.arrhythmia);
+		arrhythmia.setText("异常心率：初始化中...");
 		
 		// 画板和画笔
 		sfv = (SurfaceView) this.findViewById(R.id.SurfaceView01);
@@ -116,6 +119,12 @@ public class WaveActivity extends Activity {
 				}
 				if(msg.what == 3){
 					heart_rate.setText("心率："+msg.arg1+" bpm");
+				}
+				if(msg.what == 4){
+					arrhythmia.setText("心律失常："+msg.arg1);
+				}
+				if(msg.what == 5){
+					clsOscilloscope.save_arrhythmia();
 				}
 			}
 		};
@@ -257,4 +266,6 @@ public class WaveActivity extends Activity {
 		});
 		builder.create().show();
 	}
+	
+
 }
