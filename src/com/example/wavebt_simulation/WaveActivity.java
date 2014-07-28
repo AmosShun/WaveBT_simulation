@@ -6,13 +6,19 @@ import java.util.List;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.AlertDialog.Builder;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
@@ -27,6 +33,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 public class WaveActivity extends Activity {
+
 
 	private Button btnUp;
 	private Button btnDown;
@@ -98,9 +105,22 @@ public class WaveActivity extends Activity {
 		mPaint.setStrokeWidth(1);// 设置画笔粗细
 		// 示波器类库
 		clsOscilloscope.initOscilloscope();
+		
+/***********************************绑定Service***************************************/
+		
+	    //动态注册广播接收器  
+        msgReceiver = new MsgReceiver();  
+        IntentFilter intentFilter = new IntentFilter();  
+        intentFilter.addAction("EXG_DATA_CREATED"); 
+        intentFilter.addAction("EXG_DATA_FILE_SWITCHED");
+        registerReceiver(msgReceiver, intentFilter);  
+        
+	    Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
+	    bindService(gattServiceIntent, mServiceConnection, this.BIND_AUTO_CREATE);
+/*************************************************************************************/
 
 		/* start ASAP */		
-		clsOscilloscope.Start(sfv,sfv_acc, mPaint);
+		//clsOscilloscope.Start(sfv,sfv_acc, mPaint);
 		
 		handler = new Handler() {
 			@Override
@@ -267,5 +287,57 @@ public class WaveActivity extends Activity {
 		builder.create().show();
 	}
 	
+	/*************************************BluetoothLeService********************************/
+	private BluetoothLeService mBluetoothLeService;	//蓝牙Service
+	private MsgReceiver msgReceiver;
+	private String mDeviceAddress = "34:B1:F7:D0:63:2E";
+	// Code to manage Service lifecycle.
+    private final ServiceConnection mServiceConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder service) {
+        	Log.i("BLE","onServiceConnected!");
+            mBluetoothLeService = ((BluetoothLeService.LocalBinder) service).getService();
+            if (!mBluetoothLeService.initialize()) {
+                Log.i("BLE", "Unable to initialize Bluetooth");
+                finish();
+            }
+            // Automatically connects to the device upon successful start-up initialization.
+            mBluetoothLeService.connect(mDeviceAddress);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+/*            mBluetoothLeService = null;*/
+        }
+    };
+    
+    //广播接收器，接收EXG,MOTION文件创建消息
+    private class MsgReceiver extends BroadcastReceiver{
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			// TODO Auto-generated method stub
+			Log.d("BLE","Got broadcast!");
+			String action = intent.getAction();
+			if(action.equals("EXG_DATA_CREATED")){
+				Bundle bundle = intent.getExtras();
+				int START_TIME_ECG = bundle.getInt("START_TIME");
+				Log.d("BLE",Integer.toString(START_TIME_ECG));
+
+				clsOscilloscope.Start(sfv, sfv_acc, mPaint, START_TIME_ECG);
+			}
+			else if(action.equals("EXG_DATA_FILE_SWITCHED")){
+				int next_unix_time = intent.getIntExtra("NEXT_TIME", 0);
+				if(next_unix_time!=0){
+					clsOscilloscope.switchfile_ecg(next_unix_time);
+				}
+			}
+
+
+		}
+    	
+    }
+/*****************************************************************************************/
 
 }

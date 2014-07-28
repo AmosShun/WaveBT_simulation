@@ -1,44 +1,30 @@
 package com.example.wavebt_simulation;
 
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.io.UnsupportedEncodingException;
+import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.Set;
 
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.os.Bundle;
 import android.os.Environment;
-import android.os.Message;
 import android.util.Log;
 import android.view.SurfaceView;
-
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothSocket;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketAddress;
-import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
-import java.util.UUID;
-
-import java.util.List;
-import org.apache.http.NameValuePair;
-import org.apache.http.message.BasicNameValuePair;
 
 public class ClsOscilloscope {
 
@@ -49,14 +35,15 @@ public class ClsOscilloscope {
 		File current_file;
 		private String exg_folder_name;
 		private int current_unix_time = 0;
-		private List<Integer> next_ut_list = new ArrayList<Integer>();
+		protected List<Integer> next_ut_list = new ArrayList<Integer>();
 		private int buffer_current_unix_time = 0;
-		private static final int START_UNIX_TIME = 1400164035;
+		private int START_UNIX_TIME;//1400164035;
 		 
 		/*
 		 * Initialize folder
 		 */
-		public FileLogger(String folderName) {
+		public FileLogger(String folderName, int TIME) {
+			START_UNIX_TIME = TIME;
 			exg_folder = new File(Environment.getExternalStorageDirectory() + "/" + folderName);
 			if (!exg_folder.exists()) {
 				exg_folder.mkdir();
@@ -165,8 +152,10 @@ public class ClsOscilloscope {
 	public int total_write_count = 0;
 	public int total_read_count = 0;
     public OutputStream outStream = null;
-    private FileLogger exgLogger = new FileLogger("EXG_DATA");
-    private FileLogger motionLogger = new FileLogger("MOTION_DATA");
+    private int START_TIME_ECG = 1406182222;
+    private int START_TIME_MOTION = 1406182223;
+    private FileLogger exgLogger;
+    private FileLogger motionLogger;
 
     private Derivative derivative = new Derivative();
     private Filter filter = new Filter();
@@ -299,10 +288,11 @@ public class ClsOscilloscope {
 	 * @param recBufSize
 	 *            AudioRecord的MinBufferSize
 	 */
-	public void Start(SurfaceView sfv, SurfaceView sfv_acc, Paint mPaint) {
-		//usb_recv_thread = new RecordThread();
-		//usb_recv_thread.start();// 开始录制线程
-		//new BufferListThread().start();
+	public void Start(SurfaceView sfv, SurfaceView sfv_acc, Paint mPaint, int time_ecg) {
+		START_TIME_ECG = time_ecg;
+	    exgLogger = new FileLogger("EXG_DATA", START_TIME_ECG);
+	    motionLogger = new FileLogger("MOTION_DATA", START_TIME_MOTION);  
+
 		drawThread = new DrawThread(sfv, sfv_acc, mPaint);// 开始绘制线程
 		drawThread.start();
 		//Register with server
@@ -342,6 +332,11 @@ public class ClsOscilloscope {
 			e.printStackTrace();
 		}
 		*/
+	}
+	
+	public void switchfile_ecg(int next_unix_time){
+		exgLogger.next_ut_list.add(next_unix_time);
+		Log.d("BLE","Switch file success!");
 	}
 	
 	/*
@@ -553,14 +548,14 @@ public class ClsOscilloscope {
 			read_head_stage = 0;
 			data_pool = new int[remain_points];
 			for (int i = 0; i < remain_points; i++) {
-				data_pool[i] = (int) ((data_buf[6+i*2] & 0xff) | ((data_buf[6+i*2+1] & 0xff) << 8));
+				data_pool[i] = (int) ((data_buf[6+i*2] & 0xff) | ((data_buf[6+i*2+1] & 0xff) << 8))/32;
 			}
 			//差分法寻找QRS波群
 			derivative.process(data_pool);
 			//高通滤波消除基线漂移
 			data_pool = filter.highpass(data_pool);
 			//TCP发送数据到服务器
-			clientThread.sendECG(data_pool);
+			//clientThread.sendECG(data_pool);
 			
 			if (prev_sample_per_sec != sample_per_sec) {
 				/* 
@@ -792,7 +787,7 @@ public class ClsOscilloscope {
 					e.printStackTrace();
 				}
 			}
-			clientThread.sendMOTION(data_buf);	//发送加速度数据到服务器端
+			//clientThread.sendMOTION(data_buf);	//发送加速度数据到服务器端
 			/* Now we have data, add them to paint_list */
 			//short channel_num;
 			//short seq_num;
@@ -912,7 +907,7 @@ public class ClsOscilloscope {
 	        	//而SimpleDraw()中要使用SurfaceView，就会抛出空指针异常。不catch会死机。
 	        	try{
 		        	SimpleDraw(paint_buffer);
-		        	SimpleDraw_Acc(paint_buffer_acc);
+		        	//SimpleDraw_Acc(paint_buffer_acc);
 	        	}catch(Exception e){
 	        		e.printStackTrace();
 	        	}
@@ -1106,7 +1101,7 @@ public class ClsOscilloscope {
 					save_folder.mkdir();
 				/*建立文件*/
 				int file_name = (int) (System.currentTimeMillis() / 1000L);
-				File file = new File(Environment.getExternalStorageDirectory()+"/EXG_DATA/save/"+file_name);
+				File file = new File(Environment.getExternalStorageDirectory()+"/EXG_DATA/Arrhythmia/"+file_name);
 				if(!file.exists())
 					try {
 						file.createNewFile();
@@ -1129,6 +1124,7 @@ public class ClsOscilloscope {
 					buffer[j++] = (byte)(data[i]>>8);
 				}
 				try {
+					
 					output.write(buffer);
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
@@ -1145,4 +1141,5 @@ public class ClsOscilloscope {
 		};
 		new Thread(runnable).start();
 	}
+	
 }
